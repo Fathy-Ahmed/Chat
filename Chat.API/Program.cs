@@ -92,7 +92,8 @@ public class Program
 
                     return origin.Equals("null", StringComparison.OrdinalIgnoreCase)
                         || origin.StartsWith("http://localhost", StringComparison.OrdinalIgnoreCase)
-                        || origin.StartsWith("https://localhost", StringComparison.OrdinalIgnoreCase);
+                        || origin.StartsWith("https://localhost", StringComparison.OrdinalIgnoreCase)
+                        || origin.Equals("https://chaty-blue.vercel.app", StringComparison.OrdinalIgnoreCase);
                 })
                 .AllowAnyHeader()
                 .AllowAnyMethod()

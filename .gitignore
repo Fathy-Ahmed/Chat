@@ -40,3 +40,9 @@ coverage/
 *.db
 *.sqlite
 *.sqlite3
+
+# Publish profiles
+**/Properties/PublishProfiles/*.pubxml
+**/Properties/PublishProfiles/*.pubxml.user
+
+
