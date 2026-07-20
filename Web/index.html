@@ -1,0 +1,705 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chat Demo</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="config.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="panel sidebar">
+        <div class="hero">
+          <span class="eyebrow">ASP.NET Core SignalR</span>
+          <h1>Real-time chat demo</h1>
+          <p>
+            Login, see who is online, open a conversation, and watch messages
+            move instantly between users.
+          </p>
+          <div class="badge-row">
+            <div class="badge">
+              <span class="dot brand"></span><span>JWT auth</span>
+            </div>
+            <div class="badge">
+              <span class="dot success"></span><span>Online presence</span>
+            </div>
+            <div class="badge">
+              <span class="dot"></span><span>Reconnect ready</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">
+            <h2>Login</h2>
+            <span class="small" id="authState">Not signed in</span>
+          </div>
+          <form id="loginForm" class="form">
+            <div class="field">
+              <label for="loginUserName">Username</label>
+              <input
+                id="loginUserName"
+                name="userName"
+                autocomplete="username"
+                value="demo.alice"
+              />
+            </div>
+            <div class="field">
+              <label for="loginPassword">Password</label>
+              <input
+                id="loginPassword"
+                name="password"
+                type="password"
+                autocomplete="current-password"
+                value="Demo123!"
+              />
+            </div>
+            <button class="primary" type="submit" id="loginButton">
+              Sign in
+            </button>
+          </form>
+          <div class="hint">
+            Demo users are seeded in the database. Use
+            <strong>demo.alice</strong> or <strong>demo.bob</strong>.
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">
+            <h2>Create account</h2>
+          </div>
+          <form id="registerForm" class="form">
+            <div class="field">
+              <label for="registerUserName">Username</label>
+              <input
+                id="registerUserName"
+                name="registerUserName"
+                autocomplete="username"
+                placeholder="new.user"
+              />
+            </div>
+            <div class="field">
+              <label for="registerEmail">Email</label>
+              <input
+                id="registerEmail"
+                name="registerEmail"
+                type="email"
+                autocomplete="email"
+                placeholder="you@example.com"
+              />
+            </div>
+            <div class="field">
+              <label for="registerPassword">Password</label>
+              <input
+                id="registerPassword"
+                name="registerPassword"
+                type="password"
+                autocomplete="new-password"
+                placeholder="At least 6 characters"
+              />
+            </div>
+            <button class="ghost" type="submit" id="registerButton">
+              Register
+            </button>
+          </form>
+          <div class="hint">
+            New accounts are created instantly and signed in automatically.
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">
+            <h2>Session</h2>
+            <span class="small" id="sessionUser">No active user</span>
+          </div>
+          <div class="form">
+            <div class="chip">
+              <span class="dot" id="connectionDot"></span
+              ><span id="connectionState">Disconnected</span>
+            </div>
+            <div class="chip">
+              <span class="dot brand"></span
+              ><span id="selectedUserLabel"
+                >Select a user to start chatting</span
+              >
+            </div>
+            <button
+              class="ghost"
+              id="refreshUsersButton"
+              type="button"
+              disabled
+            >
+              Refresh users
+            </button>
+            <button class="ghost" id="logoutButton" type="button" disabled>
+              Clear session
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      <main class="panel main">
+        <div class="toolbar">
+          <div class="title-block">
+            <h2 id="chatTitle">Conversation</h2>
+            <span class="small" id="chatSubtitle"
+              >Pick a user from the list to load history.</span
+            >
+          </div>
+          <div class="status-row">
+            <div class="chip">
+              <span class="dot" id="socketDot"></span
+              ><span id="socketStatus">Socket idle</span>
+            </div>
+            <div class="chip">
+              <span class="dot brand"></span
+              ><span id="presenceCount">0 users visible</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="content">
+          <section class="users">
+            <div
+              class="section-title"
+              style="padding: 18px 18px 0; margin-bottom: 0"
+            >
+              <h2>Available users</h2>
+              <span class="small" id="usersUpdated">Waiting for login</span>
+            </div>
+            <div class="users-list" id="usersList">
+              <div class="small">Sign in to load the user list.</div>
+            </div>
+          </section>
+
+          <section class="chat">
+            <div class="messages" id="messagesPane">
+              <div class="empty-state" id="emptyState">
+                <div>
+                  <h3>No conversation selected</h3>
+                  <p>
+                    Choose a user on the left, then send a message to see
+                    SignalR updates in real time.
+                  </p>
+                </div>
+              </div>
+              <div class="message-stack" id="messageStack" hidden></div>
+            </div>
+
+            <div class="composer">
+              <div class="composer-grid">
+                <div class="field">
+                  <label for="messageInput">Message</label>
+                  <textarea
+                    id="messageInput"
+                    placeholder="Write a message..."
+                    disabled
+                  ></textarea>
+                </div>
+                <button class="primary" id="sendButton" type="button" disabled>
+                  Send
+                </button>
+              </div>
+              <div class="hint" id="composerHint">
+                Messages send through the SignalR hub and are also shown in the
+                chat history endpoint.
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <script>
+      const authKey = "chat.demo.auth";
+      const configuredApiBaseUrl = window.__CHAT_CONFIG__?.apiBaseUrl;
+      const apiBaseUrl = (
+        configuredApiBaseUrl ||
+        (window.location.protocol === "file:"
+          ? "http://localhost:5063"
+          : window.location.origin)
+      ).replace(/\/$/, "");
+
+      const state = {
+        auth: loadAuth(),
+        connection: null,
+        users: [],
+        currentUser: null,
+        selectedUserId: null,
+        selectedUserName: null,
+      };
+
+      const elements = {
+        loginForm: document.getElementById("loginForm"),
+        loginButton: document.getElementById("loginButton"),
+        registerForm: document.getElementById("registerForm"),
+        registerButton: document.getElementById("registerButton"),
+        authState: document.getElementById("authState"),
+        sessionUser: document.getElementById("sessionUser"),
+        connectionState: document.getElementById("connectionState"),
+        socketStatus: document.getElementById("socketStatus"),
+        usersList: document.getElementById("usersList"),
+        usersUpdated: document.getElementById("usersUpdated"),
+        selectedUserLabel: document.getElementById("selectedUserLabel"),
+        presenceCount: document.getElementById("presenceCount"),
+        chatTitle: document.getElementById("chatTitle"),
+        chatSubtitle: document.getElementById("chatSubtitle"),
+        messageInput: document.getElementById("messageInput"),
+        sendButton: document.getElementById("sendButton"),
+        refreshUsersButton: document.getElementById("refreshUsersButton"),
+        logoutButton: document.getElementById("logoutButton"),
+        emptyState: document.getElementById("emptyState"),
+        messageStack: document.getElementById("messageStack"),
+        connectionDot: document.getElementById("connectionDot"),
+        socketDot: document.getElementById("socketDot"),
+      };
+
+      function loadAuth() {
+        const raw = localStorage.getItem(authKey);
+        if (!raw) return null;
+        try {
+          return JSON.parse(raw);
+        } catch {
+          return null;
+        }
+      }
+
+      function saveAuth(auth) {
+        state.auth = auth;
+        localStorage.setItem(authKey, JSON.stringify(auth));
+      }
+
+      function clearAuth() {
+        state.auth = null;
+        localStorage.removeItem(authKey);
+      }
+
+      function setStatus(text, tone = "") {
+        elements.connectionState.textContent = text;
+        elements.socketStatus.textContent = text;
+        elements.connectionDot.className = `dot ${tone}`.trim();
+        elements.socketDot.className = `dot ${tone}`.trim();
+      }
+
+      function setLoggedInUi(isLoggedIn) {
+        elements.loginButton.disabled = isLoggedIn;
+        elements.refreshUsersButton.disabled = !isLoggedIn;
+        elements.logoutButton.disabled = !isLoggedIn;
+        elements.messageInput.disabled = !isLoggedIn || !state.selectedUserId;
+        elements.sendButton.disabled = !isLoggedIn || !state.selectedUserId;
+        elements.authState.textContent = isLoggedIn
+          ? "Signed in"
+          : "Not signed in";
+      }
+
+      function escapeHtml(value) {
+        return String(value)
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#39;");
+      }
+
+      function formatTime(value) {
+        const date = new Date(value);
+        return new Intl.DateTimeFormat([], {
+          hour: "2-digit",
+          minute: "2-digit",
+          month: "short",
+          day: "numeric",
+        }).format(date);
+      }
+
+      function updateSessionHeader() {
+        elements.sessionUser.textContent = state.auth
+          ? `${state.auth.userName} (${state.auth.userId})`
+          : "No active user";
+      }
+
+      function resolveApiUrl(url) {
+        if (!url) return url;
+        if (/^https?:\/\//i.test(url)) return url;
+        return `${apiBaseUrl}${url}`;
+      }
+
+      async function apiFetch(url, options = {}) {
+        const headers = new Headers(options.headers || {});
+        if (state.auth?.accessToken) {
+          headers.set("Authorization", `Bearer ${state.auth.accessToken}`);
+        }
+
+        if (options.body && !headers.has("Content-Type")) {
+          headers.set("Content-Type", "application/json");
+        }
+
+        const response = await fetch(resolveApiUrl(url), {
+          ...options,
+          headers,
+        });
+        if (!response.ok) {
+          const message = await response.text();
+          throw new Error(
+            message || `Request failed with status ${response.status}`,
+          );
+        }
+
+        if (response.status === 204) return null;
+        return response.json();
+      }
+
+      function renderUsers() {
+        const users = state.users;
+        elements.presenceCount.textContent = `${users.length} user${users.length === 1 ? "" : "s"} visible`;
+
+        if (!users.length) {
+          elements.usersList.innerHTML =
+            '<div class="small">No other users are available.</div>';
+          return;
+        }
+
+        elements.usersList.innerHTML = users
+          .map((user) => {
+            const activeClass =
+              user.id === state.selectedUserId ? "active" : "";
+            const onlineClass = user.isOnline ? "success" : "";
+            return `
+          <button type="button" class="user-card ${activeClass}" data-user-id="${escapeHtml(user.id)}">
+            <div class="user-name"><span class="dot ${onlineClass}"></span><span>${escapeHtml(user.userName)}</span></div>
+            <div class="small">${user.isOnline ? "Online" : "Offline"}${user.lastSeen ? ` · Last seen ${formatTime(user.lastSeen)}` : ""}</div>
+          </button>`;
+          })
+          .join("");
+
+        elements.usersList
+          .querySelectorAll("[data-user-id]")
+          .forEach((button) => {
+            button.addEventListener("click", () =>
+              selectUser(button.dataset.userId),
+            );
+          });
+      }
+
+      function renderMessages(messages) {
+        if (!messages.length) {
+          elements.emptyState.hidden = false;
+          elements.messageStack.hidden = true;
+          elements.messageStack.innerHTML = "";
+          return;
+        }
+
+        elements.emptyState.hidden = true;
+        elements.messageStack.hidden = false;
+        elements.messageStack.innerHTML = messages
+          .map((message) => {
+            const mine =
+              state.currentUser &&
+              message.senderId === state.currentUser.userId;
+            const senderLabel = mine
+              ? "You"
+              : state.selectedUserName || message.senderId;
+            return `
+          <article class="message ${mine ? "me" : ""}">
+            <div>${escapeHtml(message.content)}</div>
+            <div class="meta">
+              <span>${escapeHtml(senderLabel)}</span>
+              <span>${formatTime(message.sentAt)}</span>
+            </div>
+          </article>`;
+          })
+          .join("");
+
+        elements.messageStack.scrollTop = elements.messageStack.scrollHeight;
+      }
+
+      function setChatSelection(user) {
+        state.selectedUserId = user?.id ?? null;
+        state.selectedUserName = user?.userName ?? null;
+        elements.selectedUserLabel.textContent = user
+          ? `Chatting with ${user.userName}`
+          : "Select a user to start chatting";
+        elements.chatTitle.textContent = user ? user.userName : "Conversation";
+        elements.chatSubtitle.textContent = user
+          ? user.isOnline
+            ? "User is online right now."
+            : "User is currently offline."
+          : "Pick a user from the list to load history.";
+        elements.messageInput.disabled = !state.auth || !state.selectedUserId;
+        elements.sendButton.disabled = !state.auth || !state.selectedUserId;
+        renderUsers();
+      }
+
+      async function loadUsers() {
+        if (!state.auth) return;
+
+        const users = await apiFetch("/api/chat/users");
+        state.users = users;
+        renderUsers();
+
+        if (state.selectedUserId) {
+          const selected = state.users.find(
+            (user) => user.id === state.selectedUserId,
+          );
+          if (selected) setChatSelection(selected);
+        }
+
+        elements.usersUpdated.textContent = `Updated ${new Date().toLocaleTimeString()}`;
+      }
+
+      async function loadHistory(userId) {
+        if (!state.auth || !userId) return;
+        const history = await apiFetch(
+          `/api/chat/history/${encodeURIComponent(userId)}`,
+        );
+        renderMessages(history);
+        elements.chatSubtitle.textContent = `Loaded ${history.length} messages.`;
+      }
+
+      async function selectUser(userId) {
+        const user = state.users.find((item) => item.id === userId);
+        if (!user) return;
+
+        setChatSelection(user);
+        await loadHistory(userId);
+        elements.messageInput.focus();
+      }
+
+      async function startConnection() {
+        if (!state.auth?.accessToken) return;
+
+        if (state.connection) {
+          try {
+            await state.connection.stop();
+          } catch {}
+        }
+
+        state.connection = new signalR.HubConnectionBuilder()
+          .withUrl(resolveApiUrl("/chathub"), {
+            accessTokenFactory: () => state.auth.accessToken,
+          })
+          .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
+          .configureLogging(signalR.LogLevel.Information)
+          .build();
+
+        state.connection.onreconnecting(() =>
+          setStatus("Reconnecting...", "brand"),
+        );
+        state.connection.onreconnected(async () => {
+          setStatus("Connected", "success");
+          await loadUsers();
+          if (state.selectedUserId) await loadHistory(state.selectedUserId);
+        });
+        state.connection.onclose(() => setStatus("Disconnected", "danger"));
+        state.connection.on("ReceiveMessage", async (message) => {
+          const conversationMatches =
+            state.selectedUserId &&
+            (message.senderId === state.selectedUserId ||
+              message.receiverId === state.selectedUserId);
+
+          if (conversationMatches) {
+            await loadHistory(state.selectedUserId);
+          } else {
+            await loadUsers();
+          }
+        });
+        state.connection.on("UserOnline", async () => {
+          await loadUsers();
+        });
+        state.connection.on("UserOffline", async () => {
+          await loadUsers();
+        });
+
+        await state.connection.start();
+        setStatus("Connected", "success");
+      }
+
+      async function login(userName, password) {
+        const auth = await apiFetch("/api/auth/login", {
+          method: "POST",
+          body: JSON.stringify({ userName, password }),
+        });
+
+        saveAuth(auth);
+        state.currentUser = auth;
+        updateSessionHeader();
+        setLoggedInUi(true);
+        setStatus("Connecting...", "brand");
+        await startConnection();
+        await loadUsers();
+      }
+
+      async function register(userName, password, email) {
+        const auth = await apiFetch("/api/auth/register", {
+          method: "POST",
+          body: JSON.stringify({ userName, password, email }),
+        });
+
+        saveAuth(auth);
+        state.currentUser = auth;
+        updateSessionHeader();
+        setLoggedInUi(true);
+        setStatus("Connecting...", "brand");
+        await startConnection();
+        await loadUsers();
+      }
+
+      async function sendMessage() {
+        if (!state.connection || !state.selectedUserId) return;
+
+        const content = elements.messageInput.value.trim();
+        if (!content) return;
+
+        await state.connection.invoke(
+          "SendMessage",
+          state.selectedUserId,
+          content,
+        );
+        elements.messageInput.value = "";
+      }
+
+      function logout() {
+        if (state.connection) {
+          state.connection.stop().catch(() => {});
+        }
+
+        clearAuth();
+        state.users = [];
+        state.currentUser = null;
+        state.selectedUserId = null;
+        state.selectedUserName = null;
+        elements.usersUpdated.textContent = "Waiting for login";
+        elements.usersList.innerHTML =
+          '<div class="small">Sign in to load the user list.</div>';
+        setChatSelection(null);
+        renderMessages([]);
+        updateSessionHeader();
+        setLoggedInUi(false);
+        setStatus("Disconnected", "danger");
+      }
+
+      elements.loginForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const userName = document.getElementById("loginUserName").value.trim();
+        const password = document.getElementById("loginPassword").value;
+
+        elements.loginButton.disabled = true;
+        try {
+          await login(userName, password);
+          elements.authState.textContent = "Signed in";
+        } catch (error) {
+          alert(error.message || "Login failed.");
+          elements.authState.textContent = "Not signed in";
+          setStatus("Disconnected", "danger");
+        } finally {
+          elements.loginButton.disabled = !!state.auth;
+        }
+      });
+
+      elements.registerForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const userName = document
+          .getElementById("registerUserName")
+          .value.trim();
+        const password = document.getElementById("registerPassword").value;
+        const email = document.getElementById("registerEmail").value.trim();
+
+        elements.registerButton.disabled = true;
+        try {
+          await register(userName, password, email || null);
+          elements.authState.textContent = "Signed in";
+        } catch (error) {
+          alert(error.message || "Registration failed.");
+          elements.authState.textContent = "Not signed in";
+          setStatus("Disconnected", "danger");
+        } finally {
+          elements.registerButton.disabled = !!state.auth;
+        }
+      });
+
+      elements.sendButton.addEventListener("click", async () => {
+        try {
+          await sendMessage();
+        } catch (error) {
+          alert(error.message || "Unable to send message.");
+        }
+      });
+
+      elements.messageInput.addEventListener("keydown", async (event) => {
+        if (event.key === "Enter" && !event.shiftKey) {
+          event.preventDefault();
+          try {
+            await sendMessage();
+          } catch (error) {
+            alert(error.message || "Unable to send message.");
+          }
+        }
+      });
+
+      elements.refreshUsersButton.addEventListener("click", async () => {
+        try {
+          await loadUsers();
+          if (state.selectedUserId) await loadHistory(state.selectedUserId);
+        } catch (error) {
+          alert(error.message || "Unable to refresh users.");
+        }
+      });
+
+      elements.logoutButton.addEventListener("click", logout);
+
+      function parseJwt(token) {
+        const payload = token.split(".")[1];
+        const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+        const json = decodeURIComponent(
+          atob(normalized)
+            .split("")
+            .map(
+              (char) => `%${`00${char.charCodeAt(0).toString(16)}`.slice(-2)}`,
+            )
+            .join(""),
+        );
+        return JSON.parse(json);
+      }
+
+      (async function bootstrap() {
+        updateSessionHeader();
+
+        if (!state.auth) {
+          setLoggedInUi(false);
+          setStatus("Disconnected", "danger");
+          return;
+        }
+
+        setLoggedInUi(true);
+        setStatus("Connecting...", "brand");
+
+        try {
+          const payload = parseJwt(state.auth.accessToken);
+          state.currentUser = {
+            userId:
+              payload[
+                "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"
+              ] || payload.sub,
+            userName:
+              payload[
+                "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"
+              ] || state.auth.userName,
+          };
+
+          await startConnection();
+          await loadUsers();
+        } catch (error) {
+          console.error(error);
+          logout();
+        }
+      })();
+    </script>
+  </body>
+</html>

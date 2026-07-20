@@ -1,0 +1,42 @@
+# Build outputs
+bin/
+obj/
+out/
+dist/
+
+# User-specific files
+.vs/
+.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# NuGet packages
+packages/
+*.nupkg
+
+# Node / frontend
+node_modules/
+coverage/
+
+# Visual Studio temporary files
+*.tmp
+*.cache
+
+# Database / local data
+*.db
+*.sqlite
+*.sqlite3
