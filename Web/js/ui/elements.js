@@ -1,0 +1,26 @@
+export function getElements(document) {
+  return {
+    loginForm: document.getElementById("loginForm"),
+    loginButton: document.getElementById("loginButton"),
+    registerForm: document.getElementById("registerForm"),
+    registerButton: document.getElementById("registerButton"),
+    authState: document.getElementById("authState"),
+    sessionUser: document.getElementById("sessionUser"),
+    connectionState: document.getElementById("connectionState"),
+    socketStatus: document.getElementById("socketStatus"),
+    usersList: document.getElementById("usersList"),
+    usersUpdated: document.getElementById("usersUpdated"),
+    selectedUserLabel: document.getElementById("selectedUserLabel"),
+    presenceCount: document.getElementById("presenceCount"),
+    chatTitle: document.getElementById("chatTitle"),
+    chatSubtitle: document.getElementById("chatSubtitle"),
+    messageInput: document.getElementById("messageInput"),
+    sendButton: document.getElementById("sendButton"),
+    refreshUsersButton: document.getElementById("refreshUsersButton"),
+    logoutButton: document.getElementById("logoutButton"),
+    emptyState: document.getElementById("emptyState"),
+    messageStack: document.getElementById("messageStack"),
+    connectionDot: document.getElementById("connectionDot"),
+    socketDot: document.getElementById("socketDot"),
+  };
+}
